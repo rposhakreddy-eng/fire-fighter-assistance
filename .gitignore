@@ -1,0 +1,5 @@
+backend/models/*.pt
+results/*
+__pycache__/
+*.pyc
+backend/*.pt

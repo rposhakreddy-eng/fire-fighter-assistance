@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Thermal Victim Detection</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>🔥 Firefighter Assistance System</h1>
+        <p>Thermal Victim Detection</p>
+    </header>
+
+    <main>
+
+        <section class="upload-box">
+
+            <h2>Upload Thermal Image</h2>
+
+            <p>
+                Upload a thermal image captured by the drone
+                to detect possible victims.
+            </p>
+
+            <input
+                type="file"
+                id="imageInput"
+                accept="image/*"
+            >
+
+            <button id="analyzeButton">
+                Analyze Image
+            </button>
+
+        </section>
+
+
+        <section class="preview-box">
+
+            <h2>Thermal Image</h2>
+
+            <img
+                id="previewImage"
+                src=""
+                alt="Thermal image preview"
+            >
+
+        </section>
+
+
+        <section class="result-box">
+
+            <h2>Analysis Result</h2>
+
+            <p id="status">
+                Waiting for image...
+            </p>
+
+            <p id="confidence"></p>
+
+            <p id="bodyPart"></p>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
