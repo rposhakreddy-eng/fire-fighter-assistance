@@ -1171,6 +1171,27 @@
                         </div>
 
                         <div class="panel-card">
+                            <h3 class="panel-card-title">Backend API Connection</h3>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label for="settingApiUrl">FastAPI Endpoint URL:</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="settingApiUrl" class="form-control"
+                                        placeholder="http://127.0.0.1:8000" value="http://127.0.0.1:8000">
+                                    <button class="btn btn-sm btn-secondary" id="saveApiUrlBtn" type="button">Connect</button>
+                                </div>
+                                <div class="text-muted" style="font-size: 11px; margin-top: 4px;">
+                                    Default: <code>http://127.0.0.1:8000</code>. When deployed on Netlify, connect your local backend or cloud API URL.
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Connection Status:</label>
+                                <div class="status-indicator-box">
+                                    <span id="settingApiHealthText">Testing connection...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
                             <h3 class="panel-card-title">Drone Hardware & Video Adapter</h3>
                             <div class="form-group" style="margin-top: 15px;">
                                 <label for="settingDroneUrl">Drone Stream Endpoint URL (RTSP / HTTP):</label>

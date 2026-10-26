@@ -4,7 +4,7 @@
  * Handles real YOLO11 inference, webcam capture, video analysis, SQLite history, and operator reviews.
  */
 
-const API_BASE = "http://127.0.0.1:8000";
+let API_BASE = localStorage.getItem("FIRE_FIGHTER_API_BASE") || "http://127.0.0.1:8000";
 
 // State Management
 const AppState = {
@@ -103,6 +103,12 @@ async function checkBackendHealth() {
                 settingGroqStatus.textContent = data.groq_ai.status;
                 settingGroqStatus.className = data.groq_ai.configured ? "text-green" : "text-amber";
             }
+
+            const settingApiHealth = document.getElementById("settingApiHealthText");
+            if (settingApiHealth) {
+                settingApiHealth.textContent = `ONLINE — Connected to ${API_BASE}`;
+                settingApiHealth.className = "text-green";
+            }
         } else {
             throw new Error(`HTTP ${res.status}`);
         }
@@ -112,6 +118,12 @@ async function checkBackendHealth() {
         backendDot.className = "status-dot dot-red";
         cardDroneStatus.textContent = "Disconnected";
         cardDroneFootnote.textContent = "Backend offline";
+
+        const settingApiHealth = document.getElementById("settingApiHealthText");
+        if (settingApiHealth) {
+            settingApiHealth.textContent = `OFFLINE (${API_BASE}) — Start FastAPI backend on port 8000 or enter live URL`;
+            settingApiHealth.className = "text-red";
+        }
     }
 }
 
@@ -128,6 +140,7 @@ function initNavigation() {
     });
 
     // Dashboard quick action buttons
+    document.getElementById("backendStatusPill")?.addEventListener("click", () => switchView("settings"));
     document.getElementById("dashUploadBtn")?.addEventListener("click", () => switchView("upload"));
     document.getElementById("dashLiveFeedBtn")?.addEventListener("click", () => switchView("livefeed"));
     document.getElementById("dashEmptyUploadBtn")?.addEventListener("click", () => switchView("upload"));
@@ -1057,8 +1070,28 @@ function initSettingsHandlers() {
         document.getElementById("confValueLabel").textContent = `${e.target.value}%`;
     });
 
+    const apiUrlInput = document.getElementById("settingApiUrl");
+    if (apiUrlInput) {
+        apiUrlInput.value = API_BASE;
+        document.getElementById("saveApiUrlBtn")?.addEventListener("click", () => {
+            const rawUrl = apiUrlInput.value.trim().replace(/\/$/, "");
+            if (rawUrl) {
+                API_BASE = rawUrl;
+                localStorage.setItem("FIRE_FIGHTER_API_BASE", rawUrl);
+                showToast(`Backend API target set to: ${rawUrl}`, "success");
+                checkBackendHealth();
+            }
+        });
+    }
+
     saveBtn?.addEventListener("click", () => {
+        if (apiUrlInput && apiUrlInput.value.trim()) {
+            const rawUrl = apiUrlInput.value.trim().replace(/\/$/, "");
+            API_BASE = rawUrl;
+            localStorage.setItem("FIRE_FIGHTER_API_BASE", rawUrl);
+        }
         showToast("Settings successfully saved.", "success");
+        checkBackendHealth();
     });
 
     testStreamBtn?.addEventListener("click", async () => {
@@ -1130,26 +1163,40 @@ function initSampleDataButtons() {
     async function loadSample(imageFilename) {
         try {
             showToast(`Loading ${imageFilename}...`, "info");
-            const res = await fetch(`/results/${imageFilename}`);
-            let blob;
-            if (res.ok) {
-                blob = await res.blob();
-            } else {
-                // Try fetching from static /app/ or /results/
-                const altRes = await fetch(`/${imageFilename}`);
-                blob = await altRes.blob();
+            const candidateUrls = [
+                `images/${imageFilename}`,
+                `results/${imageFilename}`,
+                `/images/${imageFilename}`,
+                `/results/${imageFilename}`,
+                `../images/${imageFilename}`,
+                `../results/${imageFilename}`,
+                `${API_BASE}/results/${imageFilename}`
+            ];
+            let blob = null;
+            for (const url of candidateUrls) {
+                try {
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        blob = await res.blob();
+                        break;
+                    }
+                } catch (e) {}
+            }
+            if (!blob) {
+                throw new Error("Sample image not found on current server");
             }
 
             const file = new File([blob], imageFilename, { type: "image/jpeg" });
             handleSelectedImage(file);
             switchView("upload");
+            showToast(`Loaded ${imageFilename} successfully! Click 'Run YOLO11 Detection'.`, "success");
         } catch (err) {
             showToast(`Could not load sample automatically: ${err.message}. Please use Browse Files.`, "warning");
         }
     }
 
-    handBtn?.addEventListener("click", () => loadSample("uploaded_image.jpg"));
-    personBtn?.addEventListener("click", () => loadSample("annotated_zidane.jpg"));
+    handBtn?.addEventListener("click", () => loadSample("sample_thermal_hand.jpg"));
+    personBtn?.addEventListener("click", () => loadSample("sample_victim_person.jpg"));
 }
 
 // ==============================================================
