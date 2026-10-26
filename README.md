@@ -261,6 +261,7 @@ The two files total ~11 MB. If they do not appear, run
 | `GROQ_API_KEY` | Optional | Enables the secondary Groq Vision reasoning. Get one free at [console.groq.com](https://console.groq.com/). |
 | `FIREGUARD_DATA_DIR` | Set by Blueprint | Storage root for SQLite + annotated images (defaults to the project folder). |
 | `YOLO_IMG_SIZE` | Tuned for free plan | Inference resolution (multiple of 32). `320` on the free plan, `640` for full accuracy. |
+| `YOLO_FRAME_IMG_SIZE` | Optional | Live-frame resolution (defaults to 256). Smaller = a frame finishes before Render's proxy timeout. |
 | `MALLOC_ARENA_MAX` | Optional | `2` keeps memory usage lower on small instances. |
 | `PORT` | Provided by Render | Uvicorn binds to this port automatically. |
 
@@ -269,8 +270,10 @@ The two files total ~11 MB. If they do not appear, run
   analysis takes roughly **60–90 seconds**, so this deployment is tuned for it:
   `YOLO_IMG_SIZE=320` and health checks disabled (otherwise Render restarts the
   instance while it is busy inferring).
-- **Live webcam mode is not usable on the free plan** — each frame needs the same
-  CPU work. Image upload, history, detections, alerts, and the dashboard all work.
+- **Live webcam mode works at roughly one annotated frame per minute** on the free
+  plan (`YOLO_FRAME_IMG_SIZE=256`). The UI shows an elapsed-time counter while it
+  waits. Real-time video needs a GPU or a local run — use **Upload & Analyse** for
+  a single image (~60–90 s).
 - **Render's proxy also drops requests after ~100 seconds.** If an analysis exceeds
   that, lower `YOLO_IMG_SIZE` to `256`.
 - **Memory:** 512 MB is enough at 320 px (measured peak ~400 MB). If the service

@@ -22,6 +22,11 @@ YOLO_POSE_PATH = MODELS_DIR / "yolo11n-pose.pt"
 # Must be a multiple of 32; defaults to YOLO's native 640.
 IMG_SIZE = max(160, int(os.getenv("YOLO_IMG_SIZE", "640")))
 
+# Live-frame inference is slower than a single uploaded image because frames keep
+# arriving. Use a smaller default so one frame stays well inside Render's ~100 s
+# proxy timeout on the free plan.
+FRAME_IMG_SIZE = max(160, int(os.getenv("YOLO_FRAME_IMG_SIZE", str(min(IMG_SIZE, 256)))))
+
 # Fallback path if pose is in backend root
 if not YOLO_POSE_PATH.exists() and (BASE_DIR / "yolo11n-pose.pt").exists():
     YOLO_POSE_PATH = BASE_DIR / "yolo11n-pose.pt"
@@ -115,7 +120,8 @@ class AIDetector:
         image_input,
         conf_threshold: float = 0.25,
         use_pose: bool = True,
-        save_annotated_path: Optional[str] = None
+        save_annotated_path: Optional[str] = None,
+        imgsz: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Run real inference on an image (filepath or numpy BGR array).
@@ -148,7 +154,7 @@ class AIDetector:
         if chosen_model is None:
             raise RuntimeError("No YOLO model is currently loaded in the detector.")
 
-        results = chosen_model(image, conf=conf_threshold, imgsz=IMG_SIZE, verbose=False)
+        results = chosen_model(image, conf=conf_threshold, imgsz=imgsz or IMG_SIZE, verbose=False)
         det_index = 1
 
         for result in results:

@@ -20,6 +20,10 @@ services:
       # Raise to 640 after upgrading to a 1 CPU / 2 GB instance.
       - key: YOLO_IMG_SIZE
         value: "320"
+      # Live webcam frames use an even smaller resolution so a single frame
+      # finishes inside Render's ~100 s proxy timeout.
+      - key: YOLO_FRAME_IMG_SIZE
+        value: "256"
       # Trades a little speed for lower peak memory usage.
       - key: MALLOC_ARENA_MAX
         value: "2"

@@ -24,6 +24,9 @@ const AppState = {
     webcamStream: null,
     webcamInterval: null,
     isWebcamRunning: false,
+    webcamProgressTimer: null,
+    webcamBusySince: null,
+    webcamNextAllowed: 0,
     confidenceThreshold: 0.25,
     activeModel: "yolo11n-pose.pt",
     droneStreamConfig: { url: "", protocol: "RTSP" },
@@ -472,24 +475,51 @@ function initWebcamHandlers() {
 
             let isProcessingFrame = false;
 
-            // Stream frames at ~2.5 FPS (every 400ms) to ensure smooth laptop execution
+            annotatedPlaceholder.innerHTML = "<p><strong>Cloud CPU mode:</strong> each frame takes about " +
+                "60–90 seconds on the free Render instance. Keep this page open — the first annotated " +
+                "frame will appear automatically.</p>";
+            annotatedPlaceholder.style.display = "block";
+            statusText.textContent = "Waiting for first frame analysis…";
+
+            // Elapsed-time ticker so the wait is visible instead of looking frozen.
+            AppState.webcamBusySince = null;
+            if (AppState.webcamProgressTimer) clearInterval(AppState.webcamProgressTimer);
+            AppState.webcamProgressTimer = setInterval(() => {
+                if (!AppState.isWebcamRunning || !AppState.webcamBusySince) return;
+                const secs = Math.round((Date.now() - AppState.webcamBusySince) / 1000);
+                statusText.textContent = `Analysing frame… ${secs}s`;
+                latencyText.textContent = `${secs} s`;
+            }, 1000);
+
+            // Stream frames sequentially. A new frame is only sent after the previous
+            // one finishes, so slow CPUs never build up a request queue.
             AppState.webcamInterval = setInterval(async () => {
                 if (!AppState.isWebcamRunning || isProcessingFrame) return;
+                if (AppState.webcamNextAllowed && Date.now() < AppState.webcamNextAllowed) return;
 
                 try {
                     isProcessingFrame = true;
+                    AppState.webcamBusySince = Date.now();
                     ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-                    const b64Data = canvasEl.toDataURL("image/jpeg", 0.75);
+                    const b64Data = canvasEl.toDataURL("image/jpeg", 0.65);
 
                     const t0 = performance.now();
-                    const res = await fetch(`${API_BASE}/analyze-frame`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            image_base64: b64Data,
-                            confidence_threshold: AppState.confidenceThreshold
-                        })
-                    });
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 180000);
+                    let res;
+                    try {
+                        res = await fetch(`${API_BASE}/analyze-frame`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                image_base64: b64Data,
+                                confidence_threshold: AppState.confidenceThreshold
+                            }),
+                            signal: controller.signal
+                        });
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
 
                     if (res.ok) {
                         const frameData = await res.json();
@@ -501,17 +531,30 @@ function initWebcamHandlers() {
                             annotatedPlaceholder.style.display = "none";
                         }
 
-                        fpsText.textContent = frameData.fps || "2.5";
+                        fpsText.textContent = frameData.fps || "-";
                         latencyText.textContent = `${latency} ms`;
                         peopleText.textContent = frameData.people_count;
+                        statusText.textContent =
+                            `Frame analysed in ${(latency / 1000).toFixed(1)}s — free-tier CPU`;
 
                         // Also update dashboard cards if on dashboard
                         document.getElementById("cardVisiblePeople").textContent = frameData.people_count;
                         document.getElementById("cardConfidence").textContent = frameData.best_confidence > 0 ? `${frameData.best_confidence}%` : "0.0%";
+                    } else {
+                        statusText.textContent = `Frame failed (HTTP ${res.status})`;
+                        latencyText.textContent = "-";
+                        console.warn("Frame inference failed with HTTP", res.status);
                     }
                 } catch (frameErr) {
+                    const timedOut = frameErr && frameErr.name === "AbortError";
+                    statusText.textContent = timedOut
+                        ? "Frame timed out — cloud CPU is too slow, retrying…"
+                        : "Frame request failed, retrying…";
+                    latencyText.textContent = "-";
                     console.warn("Frame inference glitch:", frameErr);
                 } finally {
+                    AppState.webcamBusySince = null;
+                    AppState.webcamNextAllowed = Date.now() + 3000;
                     isProcessingFrame = false;
                 }
             }, 400);
@@ -537,8 +580,19 @@ function stopWebcamFeed() {
         clearInterval(AppState.webcamInterval);
         AppState.webcamInterval = null;
     }
+    if (AppState.webcamProgressTimer) {
+        clearInterval(AppState.webcamProgressTimer);
+        AppState.webcamProgressTimer = null;
+    }
+    AppState.webcamBusySince = null;
+    AppState.webcamNextAllowed = 0;
     AppState.isWebcamRunning = false;
 
+    const annotatedPlaceholder = document.getElementById("annotatedPlaceholder");
+    if (annotatedPlaceholder) {
+        annotatedPlaceholder.innerHTML = "<p>Live inference overlays will render here in real-time.</p>";
+        annotatedPlaceholder.style.display = "block";
+    }
     document.getElementById("webcamVideo").style.display = "none";
     document.getElementById("webcamPlaceholder").style.display = "block";
     document.getElementById("rawCamBadge").textContent = "OFFLINE";

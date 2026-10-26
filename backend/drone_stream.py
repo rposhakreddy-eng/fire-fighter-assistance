@@ -11,7 +11,7 @@ import base64
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from backend.detector import detector_instance
+from backend.detector import detector_instance, FRAME_IMG_SIZE
 
 
 class DroneStreamManager:
@@ -98,7 +98,8 @@ class DroneStreamManager:
             frame_bgr,
             conf_threshold=conf_threshold,
             use_pose=True,
-            save_annotated_path=None
+            save_annotated_path=None,
+            imgsz=FRAME_IMG_SIZE
         )
 
         # Encode annotated image to base64 JPEG
