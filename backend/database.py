@@ -10,7 +10,11 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-DB_FILE = os.path.join(os.path.dirname(__file__), "fireguard.db")
+# Storage location is configurable so deployments can mount a persistent disk
+# (e.g. FIREGUARD_DATA_DIR=/data on Render). Defaults to the backend folder.
+DATA_DIR = os.getenv("FIREGUARD_DATA_DIR", os.path.dirname(__file__))
+DB_FILE = os.getenv("FIREGUARD_DB_PATH", os.path.join(DATA_DIR, "fireguard.db"))
+os.makedirs(os.path.dirname(DB_FILE) or ".", exist_ok=True)
 
 
 def get_db_connection():

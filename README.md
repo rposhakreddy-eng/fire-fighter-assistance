@@ -215,3 +215,71 @@ ALL 8 AUTOMATED TESTS PASSED SUCCESSFULLY!
 2. **Temperature Values:** Optical/RGB cameras cannot measure calibrated surface temperatures without a physical FLIR/radiometric infrared sensor. The software displays `"N/A"` for temperatures rather than inventing values.
 3. **Indoor Positioning:** Standard drone GPS does not penetrate reinforced concrete structures. Indoor room and floor numbers are labeled: *"Exact indoor location unavailable without indoor positioning/building map integration."*
 4. **External Dispatch:** SMS/CAD notification service is labeled `"Not configured"` until an external Twilio or emergency CAD API key is connected.
+
+---
+
+## 9. Deploying to Render (Cloud)
+
+This repository ships with everything Render needs: a `Dockerfile`, a `render.yaml`
+Blueprint, and CPU-only Python dependencies (no multi-gigabyte CUDA wheels).
+
+### 9.1 Before you deploy
+Make sure the YOLO model weights are committed to Git — the app cannot detect anyone
+without them, and Render builds only from your GitHub repository:
+
+```powershell
+git status
+# backend/models/yolo11n.pt and backend/models/yolo11n-pose.pt must be listed
+git add .
+git commit -m "Add Render deployment configuration"
+git push origin main
+```
+
+The two files total ~11 MB. If they do not appear, run
+`git add -f backend/models/yolo11n.pt backend/models/yolo11n-pose.pt`.
+
+### 9.2 Deploy with the Blueprint (recommended)
+1. Sign in to [render.com](https://render.com) and connect your GitHub account.
+2. Click **New +** → **Blueprint**.
+3. Select the `fire-fighter-assistance` repository and click **Apply**.
+4. When Render asks for `GROQ_API_KEY`, paste your key (optional — without it the
+   interface honestly shows *"Not configured"*).
+5. Wait for the Docker build to finish (first build takes ~5–10 minutes).
+6. Open `https://<your-service-name>.onrender.com` — it redirects automatically to
+   the tactical dashboard at `/app/index.html`.
+
+### 9.3 Deploy manually (without Blueprint)
+1. **New +** → **Web Service** → choose the repository.
+2. Language / Runtime: **Docker**.
+3. Health Check Path: `/health`.
+4. Add the environment variable `GROQ_API_KEY`.
+5. Deploy.
+
+### 9.4 Environment variables
+| Variable | Required | Purpose |
+|---|---|---|
+| `GROQ_API_KEY` | Optional | Enables the secondary Groq Vision reasoning. Get one free at [console.groq.com](https://console.groq.com/). |
+| `FIREGUARD_DATA_DIR` | Set by Blueprint | Storage root for SQLite + annotated images (defaults to the project folder). |
+| `PORT` | Provided by Render | Uvicorn binds to this port automatically. |
+
+### 9.5 Things to know about the free tier
+- **Memory:** Render's free/512 MB instance is tight for PyTorch + YOLO. Detection
+  usually fits because only one worker runs, but if the service restarts with an
+  out-of-memory error, upgrade to the **Standard (2 GB)** instance in
+  *Settings → Instance Type*.
+- **Cold starts:** free services sleep after ~15 minutes of inactivity; the first
+  request afterwards takes ~30–60 seconds while Python and the models load.
+- **Ephemeral disk:** SQLite history and annotated images are lost on every deploy
+  or restart. To keep them, upgrade the plan, uncomment the `disk:` block in
+  `render.yaml` (mount path `/data`), and set `FIREGUARD_DATA_DIR=/data`.
+- **HTTPS:** Render provides it, which is required by the browser for webcam access.
+- **Region:** change `region: oregon` in `render.yaml` to the closest region
+  (e.g. `singapore`) before deploying.
+
+### 9.6 Local development is unchanged
+```powershell
+pip install -r requirements.txt
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+On Linux/macOS the same command works; the dependencies are now headless and
+CPU-only, so they behave identically on a server.

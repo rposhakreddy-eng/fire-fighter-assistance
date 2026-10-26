@@ -1,0 +1,22 @@
+# Render Blueprint — deploys the FastAPI backend + tactical dashboard as one web service.
+# Dashboard URL: https://<service-name>.onrender.com/app/index.html
+# (opening https://<service-name>.onrender.com redirects there automatically)
+services:
+  - type: web
+    name: fire-fighter-drone
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # set the value in the Render dashboard
+      - key: FIREGUARD_DATA_DIR
+        value: /data
+    # Persistent disk (optional) — keeps SQLite history + annotated images across deploys.
+    # Persistent disks require a paid instance type. Uncomment after upgrading the plan:
+    # disk:
+    #   name: fireguard-data
+    #   mountPath: /data
+    #   sizeGB: 1

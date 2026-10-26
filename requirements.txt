@@ -1,8 +1,19 @@
+# --- CPU-only PyTorch (small image, no CUDA wheels) ---
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0
+torchvision==0.29.0
+
+# --- Web API ---
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
-ultralytics
+
+# --- AI / computer vision ---
+# Headless OpenCV build: no libGL / X11 needed on Linux servers like Render
+ultralytics-opencv-headless
 pillow
-opencv-python
+numpy
+
+# --- Config & optional multimodal AI ---
 python-dotenv
 groq

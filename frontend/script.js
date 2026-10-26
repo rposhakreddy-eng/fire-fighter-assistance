@@ -4,7 +4,16 @@
  * Handles real YOLO11 inference, webcam capture, video analysis, SQLite history, and operator reviews.
  */
 
-let API_BASE = localStorage.getItem("FIRE_FIGHTER_API_BASE") || "http://127.0.0.1:8000";
+function getInitialApiBase() {
+    const saved = localStorage.getItem("FIRE_FIGHTER_API_BASE");
+    if (saved) return saved;
+    // When served directly by the backend (localhost, local Wi-Fi IP, or public tunnel like ngrok/localtunnel)
+    if (window.location.origin && window.location.origin.startsWith("http") && !window.location.hostname.includes("netlify.app")) {
+        return window.location.origin;
+    }
+    return "http://127.0.0.1:8000";
+}
+let API_BASE = getInitialApiBase();
 
 // State Management
 const AppState = {

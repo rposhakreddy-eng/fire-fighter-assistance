@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from backend.detector import detector_instance
@@ -27,7 +27,10 @@ import backend.database as db
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
-RESULTS_DIR = PROJECT_ROOT / "results"
+# Configurable storage root so a persistent disk can be mounted in production
+# (e.g. FIREGUARD_DATA_DIR=/data on Render).
+DATA_DIR = Path(os.getenv("FIREGUARD_DATA_DIR", str(PROJECT_ROOT)))
+RESULTS_DIR = Path(os.getenv("FIREGUARD_RESULTS_DIR", str(DATA_DIR / "results")))
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -89,9 +92,17 @@ class LocationUpdateRequest(BaseModel):
 
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def home():
-    """Root endpoint with system status overview."""
+    """Send the root URL straight to the tactical dashboard."""
+    if (FRONTEND_DIR / "index.html").exists():
+        return RedirectResponse(url="/app/index.html")
+    return JSONResponse(status_code=404, content={"detail": "Frontend build not found."})
+
+
+@app.get("/status")
+def status():
+    """System status overview (machine-readable)."""
     return {
         "system": "Fire Fighter Assistance Drone AI Backend",
         "status": "online",

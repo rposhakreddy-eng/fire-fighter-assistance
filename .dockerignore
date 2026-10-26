@@ -1,0 +1,27 @@
+# Version control & local tooling
+.git
+.gitignore
+.vscode
+.idea
+
+# Secrets (configure these as environment variables on Render)
+.env
+.env.local
+
+# Python caches / virtual environments
+__pycache__/
+*.py[cod]
+venv/
+env/
+.venv/
+
+# Local database & generated output (created fresh at runtime)
+backend/*.db
+results/*
+!results/.gitkeep
+
+# Documentation / test artifacts not needed at runtime
+tests/
+netlify.toml
+package-lock.json
+README.md

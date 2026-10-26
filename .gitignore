@@ -10,8 +10,10 @@ venv/
 env/
 .venv/
 
-# Model weights
+# Model weights (these small YOLO11n weights ARE committed so cloud deploys work)
 backend/models/*.pt
+!backend/models/yolo11n.pt
+!backend/models/yolo11n-pose.pt
 backend/*.pt
 
 # Persistent outputs & caches
