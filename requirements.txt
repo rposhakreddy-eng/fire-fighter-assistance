@@ -4,3 +4,5 @@ python-multipart
 ultralytics
 pillow
 opencv-python
+python-dotenv
+groq

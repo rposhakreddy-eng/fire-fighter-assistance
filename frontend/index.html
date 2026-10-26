@@ -1,75 +1,1301 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Thermal Victim Detection</title>
-
+    <title>Fire Fighter Assistance Drone — AI Victim Detection System</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 
 <body>
+    <div class="app-container">
+        <!-- ==============================================================
+             TOP HEADER BAR
+        ============================================================== -->
+        <header class="top-header">
+            <div class="brand-group">
+                <div class="brand-badge">
+                    <span class="drone-symbol">UAV</span>
+                </div>
+                <div class="brand-titles">
+                    <div class="brand-super">EMERGENCY RESCUE TACTICAL PLATFORM</div>
+                    <h1 class="brand-title">FIRE FIGHTER ASSISTANCE DRONE</h1>
+                    <div class="brand-sub">AI-Powered Victim Detection in Smoke-Filled Buildings</div>
+                </div>
+            </div>
 
-    <header>
-        <h1>🔥 Firefighter Assistance System</h1>
-        <p>Thermal Victim Detection</p>
-    </header>
+            <div class="header-status-group">
+                <div class="status-pill" id="backendStatusPill" title="FastAPI Backend Health">
+                    <span class="status-dot dot-pulse" id="backendDot"></span>
+                    <span class="status-label">BACKEND:</span>
+                    <span class="status-value" id="backendStatusText">CHECKING...</span>
+                </div>
 
-    <main>
+                <div class="status-pill" id="aiStatusPill" title="Local YOLO11 Inference Engine">
+                    <span class="status-dot dot-green" id="aiDot"></span>
+                    <span class="status-label">AI MODEL:</span>
+                    <span class="status-value" id="aiModelText">YOLO11n + Pose</span>
+                </div>
 
-        <section class="upload-box">
+                <div class="status-pill" id="droneStreamPill" title="Drone Stream Connection">
+                    <span class="status-dot dot-amber" id="droneDot"></span>
+                    <span class="status-label">DRONE STREAM:</span>
+                    <span class="status-value" id="droneStreamText">STANDBY</span>
+                </div>
 
-            <h2>Upload Thermal Image</h2>
+                <div class="clock-display" id="systemClock">--:--:-- UTC</div>
+            </div>
+        </header>
 
-            <p>
-                Upload a thermal image captured by the drone
-                to detect possible victims.
-            </p>
+        <!-- ==============================================================
+             MAIN WRAPPER (SIDEBAR + CONTENT VIEWS)
+        ============================================================== -->
+        <div class="main-layout">
+            <!-- SIDEBAR NAVIGATION -->
+            <aside class="sidebar">
+                <div class="sidebar-section-title">TACTICAL COMMAND</div>
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
+                        <span class="nav-text">Mission Dashboard</span>
+                    </button>
+                    <button class="nav-item" data-view="livefeed" id="nav-livefeed">
+                        <span class="nav-text">Live Drone Feed</span>
+                        <span class="nav-badge" id="liveBadge">LIVE</span>
+                    </button>
+                    <button class="nav-item" data-view="upload" id="nav-upload">
+                        <span class="nav-icon">🔬</span>
+                        <span class="nav-text">Upload & Analyse</span>
+                    </button>
+                    <button class="nav-item" data-view="thermal" id="nav-thermal">
+                        <span class="nav-text">Thermal Analysis</span>
+                    </button>
+                    <button class="nav-item" data-view="detections" id="nav-detections">
+                        <span class="nav-text">Victim Detections</span>
+                        <span class="nav-count" id="detectionCountBadge">0</span>
+                    </button>
+                    <button class="nav-item" data-view="location" id="nav-location">
+                        <span class="nav-text">Victim Location</span>
+                    </button>
+                    <button class="nav-item" data-view="evidence" id="nav-evidence">
+                        <span class="nav-icon">📑</span>
+                        <span class="nav-text">Evidence & Reports</span>
+                    </button>
+                    <button class="nav-item" data-view="alerts" id="nav-alerts">
+                        <span class="nav-text">Rescue Alerts</span>
+                    </button>
+                    <button class="nav-item" data-view="guidance" id="nav-guidance">
+                        <span class="nav-text">Rescue Guidance</span>
+                    </button>
+                    <button class="nav-item" data-view="history" id="nav-history">
+                        <span class="nav-text">Detection History</span>
+                    </button>
+                    <button class="nav-item" data-view="settings" id="nav-settings">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-text">Settings & Status</span>
+                    </button>
+                </nav>
 
-            <input
-                type="file"
-                id="imageInput"
-                accept="image/*"
-            >
+                <div class="sidebar-footer">
+                    <div class="system-tag">
+                        <div class="tag-title">SYSTEM PROTOTYPE v2.0</div>
+                        <div class="tag-desc">CSE Department College Project</div>
+                    </div>
+                </div>
+            </aside>
 
-            <button id="analyzeButton">
-                Analyze Image
-            </button>
+            <!-- MAIN CONTENT DISPLAY AREA -->
+            <main class="content-viewport" id="contentViewport">
 
-        </section>
+                <!-- ==============================================================
+                     VIEW 1: MAIN DASHBOARD
+                ============================================================== -->
+                <section class="view-panel active" id="view-dashboard">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Mission Control Dashboard</h2>
+                            <p class="view-subheading">Real-time victim surveillance, confidence metrics, and current
+                                aerial drone telemetry.</p>
+                        </div>
+                        <div class="view-actions">
+                            <button class="btn btn-primary" id="dashUploadBtn">Upload Image</button>
+                            <button class="btn btn-secondary" id="dashLiveFeedBtn">Open Live Feed</button>
+                        </div>
+                    </div>
 
+                    <!-- METRICS CARDS GRID -->
+                    <div class="metrics-grid">
+                        <div class="metric-card metric-confirmed">
+                            <div class="metric-header">
+                                <span class="metric-title">TOTAL CONFIRMED VICTIMS</span>
+                            </div>
+                            <div class="metric-value" id="cardConfirmedVictims">0</div>
+                            <div class="metric-footnote">Explicitly verified by human operator</div>
+                        </div>
 
-        <section class="preview-box">
+                        <div class="metric-card metric-possible">
+                            <div class="metric-header">
+                                <span class="metric-title">POSSIBLE VICTIMS DETECTED</span>
+                            </div>
+                            <div class="metric-value" id="cardPossibleVictims">0</div>
+                            <div class="metric-footnote">AI detected persons awaiting confirmation</div>
+                        </div>
 
-            <h2>Thermal Image</h2>
+                        <div class="metric-card metric-visible">
+                            <div class="metric-header">
+                                <span class="metric-title">VISIBLE PEOPLE (CURRENT FRAME)</span>
+                            </div>
+                            <div class="metric-value" id="cardVisiblePeople">—</div>
+                            <div class="metric-footnote" id="cardVisibleFootnote">No detection performed yet</div>
+                        </div>
 
-            <img
-                id="previewImage"
-                src=""
-                alt="Thermal image preview"
-            >
+                        <div class="metric-card metric-confidence">
+                            <div class="metric-header">
+                                <span class="metric-title">DETECTION CONFIDENCE</span>
+                            </div>
+                            <div class="metric-value" id="cardConfidence">—</div>
+                            <div class="metric-footnote" id="cardConfidenceFootnote">Calculated from actual YOLO
+                                inference</div>
+                        </div>
 
-        </section>
+                        <div class="metric-card metric-drone">
+                            <div class="metric-header">
+                                <span class="metric-title">CAMERA / DRONE STATUS</span>
+                            </div>
+                            <div class="metric-value status-text" id="cardDroneStatus">Standby</div>
+                            <div class="metric-footnote" id="cardDroneFootnote">Drone stream not configured</div>
+                        </div>
 
+                        <div class="metric-card metric-time">
+                            <div class="metric-header">
+                                <span class="metric-title">LAST DETECTION TIME</span>
+                            </div>
+                            <div class="metric-value time-text" id="cardLastTime">None</div>
+                            <div class="metric-footnote">Updated upon inference</div>
+                        </div>
+                    </div>
 
-        <section class="result-box">
+                    <!-- DASHBOARD CENTRAL DISPLAY SECTION -->
+                    <div class="dashboard-split-layout">
+                        <!-- CENTRAL IMAGE FEED DISPLAY -->
+                        <div class="panel-card central-image-panel">
+                            <div class="panel-card-header">
+                                <div class="header-left">
+                                    <h3 class="panel-card-title">Latest Analysed Aerial Frame</h3>
+                                </div>
+                                <div class="header-actions">
+                                    <span class="badge" id="dashFrameBadge">No Frame Loaded</span>
+                                </div>
+                            </div>
+                            <div class="frame-canvas-wrapper" id="dashFrameWrapper">
+                                <img id="dashDisplayImage" class="central-image" src="" alt="Latest Analysed Frame"
+                                    style="display: none;">
+                                <div class="empty-frame-state" id="dashEmptyState">
+                                    <div class="empty-title">No Analysed Frame Available</div>
+                                    <p class="empty-sub">Upload a thermal/drone image or start the live camera feed to
+                                        run real-time YOLO11 victim detection.</p>
+                                    <div class="empty-actions">
+                                        <button class="btn btn-primary" id="dashEmptyUploadBtn">Upload Sample
+                                            Image</button>
+                                        <button class="btn btn-outline" id="dashEmptyWebcamBtn">Start Laptop
+                                            Webcam</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="panel-card-footer">
+                                <div class="frame-meta" id="dashFrameMeta">
+                                    <span>Resolution: <strong>—</strong></span>
+                                    <span>Model: <strong>YOLO11n-pose</strong></span>
+                                    <span>Inference Latency: <strong>—</strong></span>
+                                </div>
+                                <div class="frame-btns">
+                                    <button class="btn btn-sm btn-secondary" id="dashViewEvidenceBtn" disabled>View
+                                        Evidence</button>
+                                    <button class="btn btn-sm btn-outline" id="dashExportReportBtn" disabled>Export
+                                        Report</button>
+                                </div>
+                            </div>
+                        </div>
 
-            <h2>Analysis Result</h2>
+                        <!-- RECENT FINDINGS & SECONDARY AI AUDIT -->
+                        <div class="panel-card secondary-panel">
+                            <div class="panel-card-header">
+                                <div class="header-left">
+                                    <span class="icon">🤖</span>
+                                    <h3 class="panel-card-title">AI Assessment & Body Parts</h3>
+                                </div>
+                            </div>
+                            <div class="panel-card-body">
+                                <div class="detail-block">
+                                    <div class="detail-label">IDENTIFIED VISIBLE BODY PARTS:</div>
+                                    <div class="tag-cloud" id="dashBodyPartsList">
+                                        <span class="tag-chip tag-muted">No active detection</span>
+                                    </div>
+                                    <div class="system-disclaimer-small">
+                                        Note: Dedicated body-part model not configured; mapped via 17 pose keypoints.
+                                    </div>
+                                </div>
 
-            <p id="status">
-                Waiting for image...
-            </p>
+                                <div class="detail-block">
+                                    <div class="detail-label">GROQ MULTIMODAL REASONING:</div>
+                                    <div class="reasoning-box" id="dashGroqBox">
+                                        <div class="reasoning-item">
+                                            <span class="reason-key">Human Assessment:</span>
+                                            <span class="reason-val" id="dashGroqAssessment">—</span>
+                                        </div>
+                                        <div class="reasoning-item">
+                                            <span class="reason-key">Visible Part:</span>
+                                            <span class="reason-val" id="dashGroqPart">—</span>
+                                        </div>
+                                        <div class="reasoning-item">
+                                            <span class="reason-key">Thermal Evidence:</span>
+                                            <p class="reason-text" id="dashGroqEvidence">Awaiting image analysis...</p>
+                                        </div>
+                                        <div class="reasoning-item">
+                                            <span class="reason-key">Recommendation:</span>
+                                            <p class="reason-text text-amber" id="dashGroqRec">—</p>
+                                        </div>
+                                    </div>
+                                </div>
 
-            <p id="confidence"></p>
+                                <div class="detail-block">
+                                    <div class="detail-label">LOCATION TELEMETRY:</div>
+                                    <div class="loc-summary-card">
+                                        <div>GPS: <strong id="dashGpsCoords">Unavailable</strong></div>
+                                        <div>Indoor Floor: <strong id="dashFloor">Exact indoor location
+                                                unavailable</strong></div>
+                                        <div>Indoor Room: <strong id="dashRoom">Exact indoor location
+                                                unavailable</strong></div>
+                                        <div class="loc-notice">Exact indoor location unavailable without building map
+                                            integration.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-            <p id="bodyPart"></p>
+                <!-- ==============================================================
+                     VIEW 2: LIVE DRONE FEED
+                ============================================================== -->
+                <section class="view-panel" id="view-livefeed">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Live Drone & Camera Feed</h2>
+                            <p class="view-subheading">Stream real frames into YOLO11n AI inference pipeline for
+                                continuous search & rescue tracking.</p>
+                        </div>
+                        <div class="mode-selector-bar">
+                            <span class="mode-label">INPUT MODE:</span>
+                            <button class="btn btn-sm btn-mode active" id="modeBtnWebcam" data-mode="webcam">Mode A:
+                                Laptop Webcam</button>
+                            <button class="btn btn-sm btn-mode" id="modeBtnVideo" data-mode="video">Mode B: Uploaded
+                                Video</button>
+                            <button class="btn btn-sm btn-mode" id="modeBtnDrone" data-mode="drone">Mode C: Drone RTSP
+                                Stream</button>
+                        </div>
+                    </div>
 
-        </section>
+                    <!-- MODE A: WEBCAM CONTAINER -->
+                    <div class="feed-container" id="feedModeWebcam">
+                        <div class="feed-control-toolbar">
+                            <button class="btn btn-primary" id="startWebcamBtn">Start Camera</button>
+                            <button class="btn btn-danger" id="stopWebcamBtn" disabled>Stop Camera</button>
+                            <div class="feed-stat-item">FPS: <strong id="webcamFps">0.0</strong></div>
+                            <div class="feed-stat-item">Latency: <strong id="webcamLatency">—</strong></div>
+                            <div class="feed-stat-item">People Detected: <strong id="webcamPeopleCount">0</strong></div>
+                            <div class="feed-stat-item">Status: <strong id="webcamStatus">Camera Idle</strong></div>
+                        </div>
 
-    </main>
+                        <div class="dual-feed-grid">
+                            <div class="feed-card">
+                                <div class="feed-card-header">
+                                    <span>RAW CAMERA INPUT</span>
+                                    <span class="badge" id="rawCamBadge">OFFLINE</span>
+                                </div>
+                                <div class="feed-view-box">
+                                    <video id="webcamVideo" autoplay playsinline muted style="display: none;"></video>
+                                    <div class="feed-placeholder" id="webcamPlaceholder">
+                                        <p>Click "Start Camera" to enable browser webcam feed.</p>
+                                    </div>
+                                </div>
+                            </div>
 
+                            <div class="feed-card">
+                                <div class="feed-card-header">
+                                    <span>AI ANNOTATED STREAM</span>
+                                    <span class="badge badge-green" id="annotatedCamBadge">YOLO11 ACTIVE</span>
+                                </div>
+                                <div class="feed-view-box">
+                                    <canvas id="webcamCanvas" style="display: none;"></canvas>
+                                    <img id="webcamAnnotatedImg" class="feed-annotated-image" src=""
+                                        alt="AI Feed Output" style="display: none;">
+                                    <div class="feed-placeholder" id="annotatedPlaceholder">
+                                        <p>Live inference overlays will render here in real-time.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODE B: VIDEO UPLOAD CONTAINER -->
+                    <div class="feed-container" id="feedModeVideo" style="display: none;">
+                        <div class="video-upload-area">
+                            <input type="file" id="videoFileInput"
+                                accept="video/mp4,video/avi,video/mov,video/mkv,video/webm" hidden>
+                            <div class="drop-zone-card" id="videoDropZone">
+                                <h3>Upload Drone Mission Video (.mp4, .avi, .mov)</h3>
+                                <p>Select or drag and drop a drone video recording to run frame-by-frame victim
+                                    analysis.</p>
+                                <button class="btn btn-primary" id="selectVideoBtn">Browse Video File</button>
+                                <div class="file-name-display" id="selectedVideoName"></div>
+                            </div>
+                            <div class="video-actions-bar" style="margin-top: 15px; display: flex; gap: 10px;">
+                                <button class="btn btn-success" id="processVideoBtn" disabled>Process Video
+                                    Frames</button>
+                                <button class="btn btn-secondary" id="clearVideoBtn">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="video-progress-card" id="videoProgressCard" style="display: none;">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="videoProgressBar"></div>
+                            </div>
+                            <div class="progress-text" id="videoProgressText">Processing video frames with YOLO11...
+                            </div>
+                        </div>
+
+                        <div class="video-results-container" id="videoResultsArea"
+                            style="display: none; margin-top: 20px;">
+                            <h3 class="panel-card-title">Video Analysis Summary</h3>
+                            <div class="metrics-grid" style="margin-bottom: 15px;">
+                                <div class="metric-card">
+                                    <div class="metric-title">TOTAL FRAMES</div>
+                                    <div class="metric-value" id="vidTotalFrames">0</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-title">ANALYZED FRAMES</div>
+                                    <div class="metric-value" id="vidAnalyzedFrames">0</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-title">MAX PEOPLE / FRAME</div>
+                                    <div class="metric-value" id="vidMaxPeople">0</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-title">DETECTION EVENTS</div>
+                                    <div class="metric-value" id="vidEventCount">0</div>
+                                </div>
+                            </div>
+                            <div id="vidKeyframesArea"></div>
+                        </div>
+                    </div>
+
+                    <!-- MODE C: REAL DRONE STREAM CONTAINER -->
+                    <div class="feed-container" id="feedModeDrone" style="display: none;">
+                        <div class="drone-stream-panel">
+                            <div class="stream-config-card">
+                                <h3 class="panel-card-title">Drone RTSP / HTTP Camera Stream Adapter</h3>
+                                <p class="text-muted">Configure your thermal or RGB drone camera feed (e.g., DJI, Autel,
+                                    Skydio, or PX4 telemetry).</p>
+                                <div class="input-row">
+                                    <label>Stream Protocol:</label>
+                                    <select id="droneStreamProtocolSelect" class="form-control">
+                                        <option value="RTSP">RTSP (Real-Time Streaming Protocol)</option>
+                                        <option value="HTTP">HTTP / MJPEG</option>
+                                        <option value="UDP">UDP Broadcast</option>
+                                    </select>
+                                </div>
+                                <div class="input-row">
+                                    <label>Stream Endpoint URL:</label>
+                                    <input type="text" id="droneStreamUrlInput" class="form-control"
+                                        placeholder="rtsp://192.168.1.100:554/live/ch0">
+                                </div>
+                                <div class="stream-actions">
+                                    <button class="btn btn-primary" id="connectDroneStreamBtn">Connect Drone
+                                        Stream</button>
+                                    <button class="btn btn-secondary" id="testDroneStreamBtn">Test Stream
+                                        Reachability</button>
+                                </div>
+                            </div>
+
+                            <div class="stream-status-box" id="droneStreamStatusBox">
+                                <div class="status-header">STREAM CONNECTION STATUS:</div>
+                                <div class="status-msg text-amber" id="droneStreamStatusMsg">Drone stream not configured
+                                </div>
+                                <p class="status-expl">To connect real drone hardware, enter your drone's RTSP or HTTP
+                                    video stream URL in Settings or above. When disconnected, no simulated drone stream
+                                    will be fabricated.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 3: UPLOAD & ANALYSE IMAGE
+                ============================================================== -->
+                <section class="view-panel" id="view-upload">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Upload & Analyse Thermal / Drone Image</h2>
+                            <p class="view-subheading">Execute genuine YOLO11 object detection, 17-keypoint pose
+                                estimation, and Groq AI reasoning.</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" id="loadSampleHandBtn">Load Sample Thermal Hand</button>
+                            <button class="btn btn-secondary" id="loadSamplePersonBtn">Load Sample Rescue Image</button>
+                        </div>
+                    </div>
+
+                    <div class="upload-split-layout">
+                        <!-- UPLOAD CARD & CONTROLS -->
+                        <div class="panel-card upload-controls-panel">
+                            <input type="file" id="mainImageInput" accept="image/jpeg,image/png,image/jpg,image/webp"
+                                hidden>
+                            <div class="drop-zone-card" id="mainDropZone">
+                                <h3>Select or Drop Image Here</h3>
+                                <p>Supports JPEG, PNG, WebP (up to 30MB)</p>
+                                <button class="btn btn-primary" id="mainUploadBtn">Browse Files</button>
+                                <div class="file-name-display" id="mainSelectedFileName"></div>
+                            </div>
+
+                            <div class="upload-options-form">
+                                <div class="form-group">
+                                    <label for="uploadConfidenceSlider">Detection Confidence Threshold: <strong
+                                            id="confValueLabel">25%</strong></label>
+                                    <input type="range" id="uploadConfidenceSlider" min="10" max="90" value="25"
+                                        class="slider-control">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="uploadPaletteSelect">Thermal Colormap Simulation:</label>
+                                    <select id="uploadPaletteSelect" class="form-control">
+                                        <option value="normal">Normal / As Provided</option>
+                                        <option value="ironbow">Ironbow (cv2.COLORMAP_INFERNO)</option>
+                                        <option value="rainbow">Rainbow (cv2.COLORMAP_JET)</option>
+                                        <option value="hot">Hot (cv2.COLORMAP_HOT)</option>
+                                        <option value="bone">White-Hot / Bone</option>
+                                        <option value="black-hot">Black-Hot (Inverted Grayscale)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Optional Drone Telemetry (GPS):</label>
+                                    <div class="input-grid-2">
+                                        <input type="text" id="uploadGpsLat" class="form-control"
+                                            placeholder="Latitude e.g. 17.3850">
+                                        <input type="text" id="uploadGpsLon" class="form-control"
+                                            placeholder="Longitude e.g. 78.4867">
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button class="btn btn-primary btn-lg" id="runAnalysisBtn" disabled>Run AI Victim
+                                        Analysis</button>
+                                    <button class="btn btn-outline" id="clearAnalysisBtn">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RESULT PREVIEW & DETECTION BREAKDOWN -->
+                        <div class="panel-card upload-result-panel">
+                            <div class="panel-card-header">
+                                <h3 class="panel-card-title">Analysis Output</h3>
+                                <span class="badge" id="uploadStatusBadge">Awaiting Image</span>
+                            </div>
+                            <div class="comparison-display" id="uploadComparisonBox">
+                                <div class="img-preview-box">
+                                    <div class="box-tag">ORIGINAL IMAGE</div>
+                                    <img id="uploadOrigPreview" src="" alt="Original Preview" style="display: none;">
+                                    <div class="box-placeholder" id="origPlaceholder">No image loaded</div>
+                                </div>
+                                <div class="img-preview-box">
+                                    <div class="box-tag">AI ANNOTATED EVIDENCE</div>
+                                    <img id="uploadAnnotatedPreview" src="" alt="Annotated Output"
+                                        style="display: none;">
+                                    <div class="box-placeholder" id="annotatedPlaceholder2">Inference not executed</div>
+                                </div>
+                            </div>
+
+                            <div class="detection-metrics-summary" id="uploadMetricsSummary" style="display: none;">
+                                <div class="summary-chip">People Detected: <strong id="upPeopleCount">0</strong></div>
+                                <div class="summary-chip">Best Confidence: <strong id="upBestConf">0%</strong></div>
+                                <div class="summary-chip">Inference Latency: <strong id="upLatency">0 ms</strong></div>
+                            </div>
+
+                            <div class="download-bar" id="uploadDownloadBar" style="display: none; margin-top: 15px;">
+                                <button class="btn btn-sm btn-secondary" id="downloadAnnotatedBtn">Download Annotated
+                                    Image</button>
+                                <button class="btn btn-sm btn-outline" id="sendToAlertBtn">Prepare Rescue Alert</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 4: THERMAL ANALYSIS
+                ============================================================== -->
+                <section class="view-panel" id="view-thermal">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Thermal Image Analysis & Heat Palettes</h2>
+                            <p class="view-subheading">Color palette transformation, thermal gradients, and engineering
+                                technical disclaimers.</p>
+                        </div>
+                    </div>
+
+                    <!-- MANDATORY TECHNICAL REQUIREMENT NOTICE -->
+                    <div class="alert-banner alert-warning">
+                        <div class="alert-content">
+                            <div class="alert-title">IMPORTANT SCIENTIFIC & TECHNICAL NOTICE</div>
+                            <p class="alert-text">
+                                <strong>Thermal-image detection has not been validated for this model.</strong>
+                                A standard RGB camera and a radiometric thermal camera are not equivalent. Standard YOLO
+                                models identify spatial contours and shapes rather than calibrated infrared surface
+                                temperatures.
+                                <strong>Surface temperatures are not measured or estimated without a calibrated
+                                    radiometric sensor.</strong> Drones cannot see through solid concrete or steel
+                                structures.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="thermal-analysis-grid">
+                        <div class="panel-card">
+                            <div class="panel-card-header">
+                                <h3 class="panel-card-title">Color Palette Simulators</h3>
+                            </div>
+                            <div class="palette-buttons-row">
+                                <button class="btn btn-sm btn-secondary active" data-palette="ironbow">Ironbow /
+                                    Inferno</button>
+                                <button class="btn btn-sm btn-secondary" data-palette="rainbow">Rainbow / Jet</button>
+                                <button class="btn btn-sm btn-secondary" data-palette="hot">Hot</button>
+                                <button class="btn btn-sm btn-secondary" data-palette="bone">White-Hot / Bone</button>
+                                <button class="btn btn-sm btn-secondary" data-palette="black-hot">Black-Hot</button>
+                            </div>
+                            <div class="thermal-display-container">
+                                <img id="thermalPaletteImg" src="" alt="Thermal Visualization" style="display: none;">
+                                <div class="feed-placeholder" id="thermalPalettePlaceholder">
+                                    <div class="icon">♨️</div>
+                                    <p>Upload a thermal image in the "Upload & Analyse" tab to preview heat palettes
+                                        here.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-card-header">
+                                <h3 class="panel-card-title">Thermal Detection Color Legend</h3>
+                            </div>
+                            <div class="legend-list">
+                                <div class="legend-item">
+                                    <span class="legend-swatch swatch-red"></span>
+                                    <div class="legend-text">
+                                        <strong>Person / Potential Victim:</strong>
+                                        <p>Red / Orange bounding box. High priority search region.</p>
+                                    </div>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch swatch-green"></span>
+                                    <div class="legend-text">
+                                        <strong>Pose Keypoint Skeleton:</strong>
+                                        <p>Neon Green lines & yellow keypoint vertices. Represents anatomical landmark
+                                            connections.</p>
+                                    </div>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch swatch-blue"></span>
+                                    <div class="legend-text">
+                                        <strong>Surrounding Objects / Obstacles:</strong>
+                                        <p>Cyan/Blue bounding box. Detected furniture, doors, debris, or equipment.</p>
+                                    </div>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch swatch-gray"></span>
+                                    <div class="legend-text">
+                                        <strong>Cold Background / Structural Surfaces:</strong>
+                                        <p>Dark navy / black regions indicating lower radiant heat signatures.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 5: VICTIM DETECTIONS
+                ============================================================== -->
+                <section class="view-panel" id="view-detections">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">AI Victim Detections & Operator Audit</h2>
+                            <p class="view-subheading">Review individual detections, inspect bounding boxes, and confirm
+                                or reject suspected victim records.</p>
+                        </div>
+                        <div class="filter-controls">
+                            <select id="detectionStatusFilter" class="form-control form-control-sm">
+                                <option value="ALL">All Statuses</option>
+                                <option value="Pending Review">Pending Review</option>
+                                <option value="Possible Victim">Possible Victim</option>
+                                <option value="Confirmed Victim">Confirmed Victim</option>
+                                <option value="False Positive">False Positive</option>
+                            </select>
+                            <button class="btn btn-sm btn-secondary" id="refreshDetectionsBtn">Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="detectionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Detection ID</th>
+                                        <th>Class</th>
+                                        <th>Confidence</th>
+                                        <th>Bounding Box</th>
+                                        <th>Visible Body Parts</th>
+                                        <th>Timestamp</th>
+                                        <th>Operator Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detectionsTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">No detections recorded yet.
+                                            Perform an analysis first.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 6: VICTIM LOCATION
+                ============================================================== -->
+                <!-- ==============================================================
+                     VIEW 6: VICTIM LOCATION & TACTICAL MAP INTEGRATION
+                ============================================================== -->
+                <section class="view-panel" id="view-location">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Victim Location & Tactical Map Integration</h2>
+                            <p class="view-subheading">Interactive GIS Drone GPS mapping and multi-floor indoor
+                                architectural schematic to pinpoint exact victim capture locations.</p>
+                        </div>
+                        <div class="map-view-switcher">
+                            <span class="mode-label">MAP VIEW:</span>
+                            <button class="btn btn-sm btn-mode active" id="mapModeGpsBtn" data-mapmode="gps">Outdoor
+                                Aerial GPS (GIS Map)</button>
+                            <button class="btn btn-sm btn-mode" id="mapModeFloorBtn" data-mapmode="floor">🏢 Indoor
+                                Floorplan & Sectors</button>
+                        </div>
+                    </div>
+
+                    <div class="location-grid">
+                        <!-- LEFT PANEL: TELEMETRY & SPATIAL CONTROLLER -->
+                        <div class="panel-card location-data-card">
+                            <div class="panel-card-header">
+                                <h3 class="panel-card-title">Spatial Telemetry & Target Lock</h3>
+                                <span class="badge badge-green" id="mapStatusBadge">Map Active</span>
+                            </div>
+
+                            <div class="field-item">
+                                <span class="field-label">Drone GPS Latitude:</span>
+                                <span class="field-value text-green" id="locLatDisplay">17.3850° N</span>
+                            </div>
+                            <div class="field-item">
+                                <span class="field-label">Drone GPS Longitude:</span>
+                                <span class="field-value text-green" id="locLonDisplay">78.4867° E</span>
+                            </div>
+                            <div class="field-item">
+                                <span class="field-label">Verified Floor Number:</span>
+                                <span class="field-value text-amber" id="locFloorDisplay">Floor 2 (Sector B)</span>
+                            </div>
+                            <div class="field-item">
+                                <span class="field-label">Verified Room / Zone:</span>
+                                <span class="field-value text-amber" id="locRoomDisplay">Room 204 (East Corridor)</span>
+                            </div>
+                            <div class="field-item">
+                                <span class="field-label">Location Source:</span>
+                                <span class="field-value" id="locSourceDisplay">Drone Telemetry / Camera Lock</span>
+                            </div>
+                            <div class="field-item">
+                                <span class="field-label">Search Perimeter Radius:</span>
+                                <span class="field-value" id="locRadiusDisplay">50 meters</span>
+                            </div>
+
+                            <div class="map-quick-actions"
+                                style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+                                <button class="btn btn-sm btn-success" id="detectCameraGpsBtn"
+                                    style="background: linear-gradient(135deg,#16a34a,#15803d); color:#fff; font-weight:600;">Detect
+                                    Live Camera GPS Location</button>
+                                <button class="btn btn-sm btn-primary" id="centerMapOnVictimBtn">Center Map on Captured
+                                    Victim</button>
+                                <button class="btn btn-sm btn-secondary" id="resetDroneMapBtn">Reset to Drone
+                                    Coordinates</button>
+                            </div>
+
+                            <div class="manual-location-form" style="margin-top: 20px;">
+                                <h4>Pinpoint / Attach Exact Location</h4>
+                                <p class="text-muted" style="font-size: 11px; margin-bottom: 8px;">Click anywhere on the
+                                    map to pin the camera victim location, or enter manually:</p>
+                                <div class="input-grid-2">
+                                    <input type="text" id="manualFloorInput" class="form-control"
+                                        placeholder="Floor (e.g. 2nd Floor)">
+                                    <input type="text" id="manualRoomInput" class="form-control"
+                                        placeholder="Room (e.g. Room 204)">
+                                </div>
+                                <div class="input-grid-2" style="margin-top: 8px;">
+                                    <input type="text" id="manualLatInput" class="form-control"
+                                        placeholder="Latitude (e.g. 17.3850)">
+                                    <input type="text" id="manualLonInput" class="form-control"
+                                        placeholder="Longitude (e.g. 78.4867)">
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="saveManualLocBtn"
+                                    style="margin-top: 10px; width: 100%;">Save Verified Coordinates</button>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT PANEL: INTERACTIVE DUAL MAP VIEWER -->
+                        <div class="panel-card map-display-panel">
+                            <!-- MAP MODE 1: LEAFLET GPS SATELLITE MAP -->
+                            <div id="gpsMapContainer" class="map-frame-box">
+                                <div class="map-toolbar">
+                                    <span class="map-toolbar-title">TACTICAL SATELLITE & GIS DRONE RADAR</span>
+                                    <div class="map-legend-pills">
+                                        <span class="pill pill-drone">Drone</span>
+                                        <span class="pill pill-victim">Victim Beacon</span>
+                                        <span class="pill pill-perimeter">50m Perimeter</span>
+                                    </div>
+                                </div>
+                                <div id="tacticalGpsMap" class="leaflet-map-canvas"></div>
+                            </div>
+
+                            <!-- MAP MODE 2: INDOOR TACTICAL FLOORPLAN & SECTORS -->
+                            <div id="indoorFloorContainer" class="map-frame-box" style="display: none;">
+                                <div class="floor-nav-bar">
+                                    <span class="floor-nav-label">BUILDING LEVEL:</span>
+                                    <button class="btn btn-sm btn-floor" data-floor="1">Level 1: Ground & Main
+                                        Lobby</button>
+                                    <button class="btn btn-sm btn-floor active" data-floor="2">Level 2: Commercial
+                                        Sector (Active Fire)</button>
+                                    <button class="btn btn-sm btn-floor" data-floor="3">Level 3: Mechanical /
+                                        Rooftop</button>
+                                </div>
+
+                                <div class="floorplan-canvas-wrapper" id="floorplanWrapper">
+                                    <svg id="tacticalFloorplanSvg" viewBox="0 0 800 500" class="floorplan-svg">
+                                        <defs>
+                                            <radialGradient id="fireHeatGrad" cx="50%" cy="50%" r="50%">
+                                                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.8" />
+                                                <stop offset="40%" stop-color="#f97316" stop-opacity="0.4" />
+                                                <stop offset="100%" stop-color="#ea580c" stop-opacity="0" />
+                                            </radialGradient>
+                                            <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+                                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9" />
+                                                <stop offset="60%" stop-color="#0284c7" stop-opacity="0.3" />
+                                                <stop offset="100%" stop-color="#0369a1" stop-opacity="0" />
+                                            </radialGradient>
+                                        </defs>
+
+                                        <!-- Outer Building Walls -->
+                                        <rect x="20" y="20" width="760" height="460" rx="8" class="wall-outer" />
+
+                                        <!-- Corridors -->
+                                        <rect x="360" y="30" width="80" height="440" class="corridor" />
+                                        <rect x="30" y="220" width="740" height="60" class="corridor" />
+
+                                        <!-- Rooms Sector A (North-West) -->
+                                        <g class="room-group" data-room="Room 201 (Conference West)"
+                                            data-sector="Sector A">
+                                            <rect x="30" y="30" width="160" height="180" class="room-rect" />
+                                            <text x="110" y="110" class="room-label">ROOM 201</text>
+                                            <text x="110" y="130" class="room-sub">Conference West</text>
+                                        </g>
+
+                                        <g class="room-group" data-room="Room 202 (Executive Suite)"
+                                            data-sector="Sector A">
+                                            <rect x="200" y="30" width="150" height="180" class="room-rect" />
+                                            <text x="275" y="110" class="room-label">ROOM 202</text>
+                                            <text x="275" y="130" class="room-sub">Executive Suite</text>
+                                        </g>
+
+                                        <!-- Rooms Sector B (North-East - Target Area) -->
+                                        <g class="room-group active-target-room" id="room204Group"
+                                            data-room="Room 204 (Open Workspace)" data-sector="Sector B">
+                                            <rect x="450" y="30" width="160" height="180"
+                                                class="room-rect target-highlight" />
+                                            <text x="530" y="110" class="room-label">ROOM 204</text>
+                                            <text x="530" y="130" class="room-sub text-amber">TARGET PINPOINTED</text>
+                                        </g>
+
+                                        <g class="room-group" data-room="Room 203 (Server / IT)" data-sector="Sector B">
+                                            <rect x="620" y="30" width="150" height="180" class="room-rect" />
+                                            <text x="695" y="110" class="room-label">ROOM 203</text>
+                                            <text x="695" y="130" class="room-sub">IT / Server Vault</text>
+                                        </g>
+
+                                        <!-- Rooms Sector C (South-East - High Heat Fire Origin) -->
+                                        <g class="room-group hazard-room" data-room="Sector C (Utility / Fire Origin)"
+                                            data-sector="Sector C">
+                                            <rect x="450" y="290" width="320" height="180"
+                                                class="room-rect hazard-rect" />
+                                            <circle cx="610" cy="380" r="90" fill="url(#fireHeatGrad)"
+                                                class="fire-pulse" />
+                                            <text x="610" y="365" class="room-label text-fire">FIRE ORIGIN ZONE</text>
+                                            <text x="610" y="385" class="room-sub text-red">HIGH HEAT HAZARD
+                                                (&gt;650&#176;C)</text>
+                                        </g>
+
+                                        <!-- Rooms Sector D (South-West) -->
+                                        <g class="room-group" data-room="Room 205 (Breakroom / South)"
+                                            data-sector="Sector D">
+                                            <rect x="30" y="290" width="160" height="180" class="room-rect" />
+                                            <text x="110" y="380" class="room-label">ROOM 205</text>
+                                            <text x="110" y="400" class="room-sub">Breakroom</text>
+                                        </g>
+
+                                        <!-- Central Stairwell & Elevators -->
+                                        <g class="room-group" data-room="Central Stairwell" data-sector="Core">
+                                            <rect x="200" y="290" width="150" height="180" class="stairwell-rect" />
+                                            <text x="275" y="370" class="room-label">STAIRWELL A</text>
+                                            <text x="275" y="390" class="room-sub text-green">✓ PRIMARY EVAC EXIT</text>
+                                        </g>
+
+                                        <!-- Evacuation Route Green Arrows -->
+                                        <path d="M 530 180 L 530 250 L 330 250 L 330 290" class="evac-route-line" />
+                                        <path d="M 110 210 L 110 250 L 220 250 L 220 290" class="evac-route-line" />
+
+                                        <!-- Drone Position & Camera FOV cone pointing into Room 204 -->
+                                        <g id="droneIndoorGroup" transform="translate(400, 240)">
+                                            <polygon points="0,0 120,-80 140,-50" class="camera-fov-cone" />
+                                            <circle cx="0" cy="0" r="14" class="drone-pin-base" />
+                                            <text x="0" y="4" class="drone-pin-icon">UAV</text>
+                                            <text x="0" y="28" class="drone-pin-label">DRONE CAMERA</text>
+                                        </g>
+
+                                        <!-- Victim Beacon Pin in Room 204 -->
+                                        <g id="victimIndoorBeacon" transform="translate(530, 100)"
+                                            class="victim-beacon-group">
+                                            <circle cx="0" cy="0" r="28" class="beacon-wave-1" />
+                                            <circle cx="0" cy="0" r="18" class="beacon-wave-2" />
+                                            <circle cx="0" cy="0" r="8" class="beacon-core" />
+                                            <text x="0" y="-18" class="beacon-tag">VICTIM CAPTURED HERE</text>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="floorplan-footer">
+                                    <div class="legend-chip"><span class="chip-dot dot-red"></span> Victim Pinpoint
+                                    </div>
+                                    <div class="legend-chip"><span class="chip-dot dot-blue"></span> Drone Camera FOV
+                                        Cone</div>
+                                    <div class="legend-chip"><span class="chip-dot dot-green"></span> Verified
+                                        Evacuation Corridor</div>
+                                    <div class="legend-chip"><span class="chip-dot dot-amber"></span> Extreme Thermal
+                                        Hazard Area</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 7: EVIDENCE & REPORTS
+                ============================================================== -->
+                <section class="view-panel" id="view-evidence">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Highlighted Evidence & Mission Reports</h2>
+                            <p class="view-subheading">Side-by-side evidence inspection, downloadable annotated imagery,
+                                and printable incident audit reports.</p>
+                        </div>
+                        <button class="btn btn-primary" id="printReportBtn">Print / Export Incident Report</button>
+                    </div>
+
+                    <div class="evidence-container">
+                        <div class="panel-card" id="printableReportArea">
+                            <div class="report-header-print">
+                                <h2>TACTICAL SEARCH & RESCUE INCIDENT REPORT</h2>
+                                <p>Fire Fighter Assistance Drone Detection System — Generated on <span
+                                        id="reportTimestamp">--</span></p>
+                            </div>
+
+                            <div class="evidence-side-by-side">
+                                <div class="evidence-box">
+                                    <div class="evidence-title">ORIGINAL CAPTURED FRAME</div>
+                                    <img id="evidenceOrigImg" src="" alt="Original Evidence" style="display: none;">
+                                    <div class="box-placeholder" id="evidenceOrigPlaceholder">No evidence frame loaded
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" id="downloadOrigBtn"
+                                        style="margin-top: 10px;" disabled>Download Original</button>
+                                </div>
+
+                                <div class="evidence-box">
+                                    <div class="evidence-title">AI ANNOTATED EVIDENCE (YOLO11 + POSE)</div>
+                                    <img id="evidenceAnnotatedImg" src="" alt="Annotated Evidence"
+                                        style="display: none;">
+                                    <div class="box-placeholder" id="evidenceAnnotatedPlaceholder">Inference not
+                                        performed</div>
+                                    <button class="btn btn-sm btn-primary" id="downloadAnnotatedBtn2"
+                                        style="margin-top: 10px;" disabled>Download Annotated</button>
+                                </div>
+                            </div>
+
+                            <div class="report-details-section">
+                                <h3>Detection Verification Summary</h3>
+                                <div class="report-grid">
+                                    <div><strong>Analysis Session ID:</strong> <span id="repAnalysisId">—</span></div>
+                                    <div><strong>Model Used:</strong> <span id="repModel">—</span></div>
+                                    <div><strong>People Detected:</strong> <span id="repPeople">—</span></div>
+                                    <div><strong>Peak Confidence:</strong> <span id="repConfidence">—</span></div>
+                                    <div><strong>Identified Body Regions:</strong> <span id="repBodyParts">—</span>
+                                    </div>
+                                    <div><strong>GPS / Indoor Location:</strong> <span id="repLocation">—</span></div>
+                                </div>
+                                <div style="margin-top: 15px;">
+                                    <strong>Multimodal Assessment & Responder Notes:</strong>
+                                    <p id="repNotes" class="text-muted" style="margin-top: 5px;">No notes available.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 8: FIREFIGHTER EMERGENCY ALERTS
+                ============================================================== -->
+                <section class="view-panel" id="view-alerts">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Firefighter Emergency Dispatch Alerts</h2>
+                            <p class="view-subheading">Prepare and record structured alerts for on-scene rescue teams.
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" id="manualCreateAlertBtn">Prepare Rescue Alert</button>
+                    </div>
+
+                    <div class="alert-banner alert-info" style="margin-bottom: 20px;">
+                        <div class="alert-content">
+                            <div class="alert-title">DISPATCH NOTIFICATION SERVICE STATUS</div>
+                            <p class="alert-text">
+                                <strong>Notification service not configured.</strong>
+                                Alerts are logged into the persistent SQLite database for on-scene operator review.
+                                External SMS / CAD (Computer-Aided Dispatch) credentials remain securely in the backend.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="alertsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Alert ID</th>
+                                        <th>Detection ID</th>
+                                        <th>Victim Status</th>
+                                        <th>Confidence</th>
+                                        <th>Location Summary</th>
+                                        <th>Dispatch Status</th>
+                                        <th>Created At</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alertsTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">No emergency alerts recorded yet.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 9: RESCUE GUIDANCE FOR VICTIMS & RESPONDERS
+                ============================================================== -->
+                <section class="view-panel" id="view-guidance">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Rescue Guidance & Fire Survival Safety Protocol</h2>
+                            <p class="view-subheading">Conservative, safety-focused emergency instructions for victims
+                                and fire crews.</p>
+                        </div>
+                    </div>
+
+                    <div class="alert-banner alert-warning" style="margin-bottom: 20px;">
+                        <div class="alert-content">
+                            <div class="alert-title">CRITICAL SAFETY DIRECTIVE</div>
+                            <p class="alert-text">
+                                <strong>General guidance only — always follow official emergency responders'
+                                    instructions.</strong>
+                                Automated software cannot assess invisible toxic gas levels, structural collapse
+                                hazards, or flashover conditions. Never instruct victims to pass through flames or dense
+                                smoke.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="guidance-cards-grid">
+                        <div class="panel-card guidance-card">
+                            <div class="guidance-card-header">
+                                <span class="badge badge-red">IMMEDIATE SURVIVAL</span>
+                                <h3>Actions for Trapped Victims</h3>
+                            </div>
+                            <ul class="guidance-list">
+                                <li><strong>Call Emergency Services Immediately:</strong> Dial 911 / 112 / 101. Inform
+                                    dispatchers of your exact room, floor, and visible landmarks.</li>
+                                <li><strong>Stay Low to the Ground:</strong> Smoke, heat, and carbon monoxide rise.
+                                    Crawl on hands and knees where breathable air remains cleanest.</li>
+                                <li><strong>Check Doors Before Opening:</strong> Feel the door and doorknob with the
+                                    back of your hand. If hot to the touch, DO NOT open it. Fire is on the other side.
+                                </li>
+                                <li><strong>Seal Gaps:</strong> Use wet towels, blankets, or clothing along door cracks
+                                    and air vents to block smoke intrusion.</li>
+                                <li><strong>Signal Rescuers:</strong> Wave a bright flashlight, phone screen, or
+                                    light-colored cloth at exterior windows. Shout at regular intervals.</li>
+                                <li><strong>NEVER Use Elevators:</strong> Elevators can stall due to electrical failure
+                                    or open directly onto fire-involved floors.</li>
+                            </ul>
+                        </div>
+
+                        <div class="panel-card guidance-card">
+                            <div class="guidance-card-header">
+                                <span class="badge badge-amber">TACTICAL CREWS</span>
+                                <h3>Drone Assisted Firefighter SOP</h3>
+                            </div>
+                            <ul class="guidance-list">
+                                <li><strong>Primary Search Prioritization:</strong> Direct initial search teams toward
+                                    verified high-confidence person detections with upper-body or limb signatures.</li>
+                                <li><strong>Thermal Differential Analysis:</strong> Compare ambient structural
+                                    temperature with detected signatures to differentiate living victims from residual
+                                    heat sources.</li>
+                                <li><strong>Two-In, Two-Out Rule:</strong> Never send an isolated responder into a
+                                    smoke-filled quadrant based solely on drone telemetry. Maintain buddy team contact.
+                                </li>
+                                <li><strong>Thermal Sensor Limitations:</strong> Standard infrared does not penetrate
+                                    double-pane low-E glass, water curtains, or reflective metallic vapor barriers.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 10: DETECTION HISTORY
+                ============================================================== -->
+                <section class="view-panel" id="view-history">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">Persistent Detection & Analysis History</h2>
+                            <p class="view-subheading">Historical database of drone missions, uploaded images, and
+                                confirmed rescue detections.</p>
+                        </div>
+                        <div class="history-search-bar">
+                            <input type="text" id="historySearchInput" class="form-control form-control-sm"
+                                placeholder="Search by Session ID or File...">
+                            <button class="btn btn-sm btn-secondary" id="historyRefreshBtn">Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Analysis ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Source</th>
+                                        <th>Filename</th>
+                                        <th>People Detected</th>
+                                        <th>Best Confidence</th>
+                                        <th>Palette</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">Loading history from SQLite
+                                            database...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==============================================================
+                     VIEW 11: SETTINGS & SYSTEM STATUS
+                ============================================================== -->
+                <section class="view-panel" id="view-settings">
+                    <div class="view-header">
+                        <div>
+                            <h2 class="view-heading">System Diagnostics & Platform Settings</h2>
+                            <p class="view-subheading">Configure model inference parameters, drone hardware streams, and
+                                verify server integrity.</p>
+                        </div>
+                        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="panel-card">
+                            <h3 class="panel-card-title">AI Model & Inference Settings</h3>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label for="settingConfThreshold">Default Detection Confidence Threshold: <strong
+                                        id="settingConfLabel">25%</strong></label>
+                                <input type="range" id="settingConfThreshold" min="10" max="90" value="25"
+                                    class="slider-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="settingModelSelect">Active YOLO Model:</label>
+                                <select id="settingModelSelect" class="form-control">
+                                    <option value="yolo11n-pose.pt" selected>YOLO11n-pose (Object Detection + 17
+                                        Keypoints Pose)</option>
+                                    <option value="yolo11n.pt">YOLO11n (Standard Object Detection Only)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Secondary Multimodal LLM (Groq API):</label>
+                                <div class="status-indicator-box">
+                                    <span id="settingGroqStatus">Checking .env configuration...</span>
+                                    <div class="text-muted" style="font-size: 11px; margin-top: 4px;">API keys are
+                                        stored securely on the backend .env file and never exposed to the client.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="panel-card-title">Drone Hardware & Video Adapter</h3>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label for="settingDroneUrl">Drone Stream Endpoint URL (RTSP / HTTP):</label>
+                                <input type="text" id="settingDroneUrl" class="form-control"
+                                    placeholder="rtsp://192.168.1.100:554/live/ch0">
+                            </div>
+                            <div class="form-group">
+                                <label for="settingProtocol">Protocol:</label>
+                                <select id="settingProtocol" class="form-control">
+                                    <option value="RTSP">RTSP</option>
+                                    <option value="HTTP">HTTP/MJPEG</option>
+                                    <option value="UDP">UDP</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-sm btn-secondary" id="testStreamSettingsBtn">Test Drone Stream
+                                Reachability</button>
+                            <span id="streamTestResult" style="margin-left: 10px; font-size: 12px;"></span>
+                        </div>
+
+                        <div class="panel-card full-width">
+                            <h3 class="panel-card-title">Diagnostics & Subsystem Health Check</h3>
+                            <div class="diagnostics-grid">
+                                <div class="diag-item">
+                                    <div class="diag-title">FastAPI Backend Service</div>
+                                    <div class="diag-status text-green" id="diagBackend">ONLINE (Port 8000)</div>
+                                </div>
+                                <div class="diag-item">
+                                    <div class="diag-title">PyTorch & Ultralytics YOLO</div>
+                                    <div class="diag-status text-green" id="diagYolo">OPERATIONAL (CPU)</div>
+                                </div>
+                                <div class="diag-item">
+                                    <div class="diag-title">SQLite Database Persistence</div>
+                                    <div class="diag-status text-green" id="diagDb">CONNECTED (fireguard.db)</div>
+                                </div>
+                                <div class="diag-item">
+                                    <div class="diag-title">Dedicated Body-Part Model</div>
+                                    <div class="diag-status text-amber">Not configured (Pose keypoints mapped)</div>
+                                </div>
+                                <div class="diag-item">
+                                    <div class="diag-title">Thermal Sensor Radiometric Calibration</div>
+                                    <div class="diag-status text-amber">Not validated (Standard contour inference)</div>
+                                </div>
+                                <div class="diag-item">
+                                    <div class="diag-title">Indoor Positioning Service</div>
+                                    <div class="diag-status text-amber">Not configured (Building map offline)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- ==============================================================
+             MODALS
+        ============================================================== -->
+        <!-- PREPARE RESCUE ALERT MODAL -->
+        <div class="modal-backdrop" id="alertModal" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Prepare Rescue Alert for Firefighters</h3>
+                    <button class="modal-close" id="closeAlertModalBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Target Detection ID:</label>
+                        <input type="text" id="alertModalDetId" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Victim Status Assessment:</label>
+                        <select id="alertModalStatus" class="form-control">
+                            <option value="Confirmed Victim">Confirmed Victim (High Priority Rescue)</option>
+                            <option value="Possible Victim">Possible Victim (Awaiting Visual Contact)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Location Summary:</label>
+                        <input type="text" id="alertModalLocation" class="form-control"
+                            placeholder="e.g. 2nd Floor, Room 204 or GPS coordinates">
+                    </div>
+                    <div class="form-group">
+                        <label>Tactical Notes for Rescue Crew:</label>
+                        <textarea id="alertModalNotes" class="form-control" rows="3"
+                            placeholder="e.g. Victim appears reaching out from under fallen drywall; smoke density heavy."></textarea>
+                    </div>
+                    <div class="system-disclaimer-small" style="margin-top: 10px;">
+                        Note: This alert will be recorded to local mission logs. External SMS/CAD dispatch service is
+                        currently not configured.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelAlertModalBtn">Cancel</button>
+                    <button class="btn btn-primary" id="submitAlertBtn">Record & Transmit Alert</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONFIRM DELETE MODAL -->
+        <div class="modal-backdrop" id="deleteModal" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Confirm Record Deletion</h3>
+                    <button class="modal-close" id="closeDeleteModalBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to permanently delete this analysis record and all its associated
+                        detections from the SQLite database?</p>
+                    <strong id="deleteTargetId" class="text-amber"></strong>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelDeleteModalBtn">Cancel</button>
+                    <button class="btn btn-danger" id="confirmDeleteBtn">Delete Record</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION CONTAINER -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <!-- LEAFLET OPEN-SOURCE TACTICAL MAPS ENGINE -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- MAIN SCRIPT -->
     <script src="script.js"></script>
-
 </body>
+
 </html>

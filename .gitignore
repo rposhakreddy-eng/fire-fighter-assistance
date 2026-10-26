@@ -1,5 +1,28 @@
-backend/models/*.pt
-results/*
+# Environment Secrets
+.env
+.env.local
+
+# Python Cache & Virtual Environments
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Model weights
+backend/models/*.pt
 backend/*.pt
+
+# Persistent outputs & caches
+results/*.jpg
+results/*.png
+results/*.mp4
+!results/uploaded_image.jpg
+backend/*.db
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
