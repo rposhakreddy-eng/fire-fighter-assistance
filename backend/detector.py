@@ -18,6 +18,10 @@ MODELS_DIR = BASE_DIR / "models"
 YOLO_DET_PATH = MODELS_DIR / "yolo11n.pt"
 YOLO_POSE_PATH = MODELS_DIR / "yolo11n-pose.pt"
 
+# Inference resolution. Lower = faster on weak CPUs (e.g. Render's free 0.1 CPU plan).
+# Must be a multiple of 32; defaults to YOLO's native 640.
+IMG_SIZE = max(160, int(os.getenv("YOLO_IMG_SIZE", "640")))
+
 # Fallback path if pose is in backend root
 if not YOLO_POSE_PATH.exists() and (BASE_DIR / "yolo11n-pose.pt").exists():
     YOLO_POSE_PATH = BASE_DIR / "yolo11n-pose.pt"
@@ -144,7 +148,7 @@ class AIDetector:
         if chosen_model is None:
             raise RuntimeError("No YOLO model is currently loaded in the detector.")
 
-        results = chosen_model(image, conf=conf_threshold, verbose=False)
+        results = chosen_model(image, conf=conf_threshold, imgsz=IMG_SIZE, verbose=False)
         det_index = 1
 
         for result in results:

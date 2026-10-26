@@ -7,13 +7,22 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    healthCheckPath: /health
+    # Health checks are intentionally not configured: YOLO inference can occupy
+    # the free plan's 0.1 CPU for tens of seconds, and a failing health check
+    # makes Render restart the instance mid-request.
     autoDeploy: true
     envVars:
       - key: GROQ_API_KEY
         sync: false          # set the value in the Render dashboard
       - key: FIREGUARD_DATA_DIR
         value: /data
+      # Lower inference resolution = much faster on weak cloud CPUs.
+      # Raise to 640 after upgrading to a 1 CPU / 2 GB instance.
+      - key: YOLO_IMG_SIZE
+        value: "320"
+      # Trades a little speed for lower peak memory usage.
+      - key: MALLOC_ARENA_MAX
+        value: "2"
     # Persistent disk (optional) — keeps SQLite history + annotated images across deploys.
     # Persistent disks require a paid instance type. Uncomment after upgrading the plan:
     # disk:
