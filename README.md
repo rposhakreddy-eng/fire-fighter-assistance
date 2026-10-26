@@ -260,13 +260,24 @@ The two files total ~11 MB. If they do not appear, run
 |---|---|---|
 | `GROQ_API_KEY` | Optional | Enables the secondary Groq Vision reasoning. Get one free at [console.groq.com](https://console.groq.com/). |
 | `FIREGUARD_DATA_DIR` | Set by Blueprint | Storage root for SQLite + annotated images (defaults to the project folder). |
+| `YOLO_IMG_SIZE` | Tuned for free plan | Inference resolution (multiple of 32). `320` on the free plan, `640` for full accuracy. |
+| `MALLOC_ARENA_MAX` | Optional | `2` keeps memory usage lower on small instances. |
 | `PORT` | Provided by Render | Uvicorn binds to this port automatically. |
 
 ### 9.5 Things to know about the free tier
-- **Memory:** Render's free/512 MB instance is tight for PyTorch + YOLO. Detection
-  usually fits because only one worker runs, but if the service restarts with an
-  out-of-memory error, upgrade to the **Standard (2 GB)** instance in
-  *Settings → Instance Type*.
+- **CPU is the real limit:** the free plan gives only **0.1 CPU**. A single image
+  analysis takes roughly **60–90 seconds**, so this deployment is tuned for it:
+  `YOLO_IMG_SIZE=320` and health checks disabled (otherwise Render restarts the
+  instance while it is busy inferring).
+- **Live webcam mode is not usable on the free plan** — each frame needs the same
+  CPU work. Image upload, history, detections, alerts, and the dashboard all work.
+- **Render's proxy also drops requests after ~100 seconds.** If an analysis exceeds
+  that, lower `YOLO_IMG_SIZE` to `256`.
+- **Memory:** 512 MB is enough at 320 px (measured peak ~400 MB). If the service
+  restarts, check the logs for an out-of-memory kill.
+- **Making it fast:** upgrade to **Standard (1 CPU / 2 GB)**, set
+  `YOLO_IMG_SIZE=640`, and optionally re-add `healthCheckPath: /health` in
+  `render.yaml`. Inference then takes a few seconds.
 - **Cold starts:** free services sleep after ~15 minutes of inactivity; the first
   request afterwards takes ~30–60 seconds while Python and the models load.
 - **Ephemeral disk:** SQLite history and annotated images are lost on every deploy
