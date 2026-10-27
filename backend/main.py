@@ -202,11 +202,23 @@ async def analyze_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI model inference failed: {e}")
 
-    # 5. Run Groq Secondary Multimodal Vision Analysis
-    grok_result = analyze_with_grok(
-        image_path=str(original_save_path),
-        detections=det_result["detections"]
-    )
+    # 5. Run Groq Secondary Multimodal Vision Analysis (non-fatal)
+    try:
+        grok_result = analyze_with_grok(
+            image_path=str(original_save_path),
+            detections=det_result["detections"]
+        )
+    except Exception as e:
+        print(f"[Groq AI] Secondary analysis skipped due to error: {e}")
+        grok_result = {
+            "configured": False,
+            "human_assessment": "ANALYSIS UNAVAILABLE",
+            "visible_body_part": "N/A",
+            "evidence": f"Secondary vision model request failed: {str(e)[:120]}",
+            "confidence": "N/A",
+            "recommendation": "Proceed with caution using primary YOLO detections.",
+            "raw_text": str(e)
+        }
 
     # 6. Determine Location Status
     loc_status = "Exact indoor location unavailable"

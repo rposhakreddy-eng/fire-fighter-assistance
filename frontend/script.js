@@ -295,9 +295,17 @@ async function runImageInference() {
 
     } catch (err) {
         console.error("Inference error:", err);
-        showToast(`Inference failed: ${err.message}`, "error");
-        document.getElementById("uploadStatusBadge").textContent = "Inference Failed";
-        document.getElementById("uploadStatusBadge").className = "badge badge-red";
+        // Some errors (e.g. network interruptions) can still have partial results;
+        // only show "Inference Failed" if we don't have results to display.
+        if (AppState.currentAnalysis) {
+            showToast(`Inference completed with warnings: ${err.message}`, "warning");
+            document.getElementById("uploadStatusBadge").textContent = "Completed";
+            document.getElementById("uploadStatusBadge").className = "badge badge-green";
+        } else {
+            showToast(`Inference failed: ${err.message}`, "error");
+            document.getElementById("uploadStatusBadge").textContent = "Inference Failed";
+            document.getElementById("uploadStatusBadge").className = "badge badge-red";
+        }
     } finally {
         runBtn.disabled = false;
         runBtn.textContent = "Run AI Victim Analysis";
